@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404, render
+from django.db.models import Avg
 
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -6,8 +7,8 @@ from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 
-from .models import Product
-from .serializers import ProductSerializer
+from .models import Product, Review
+from .serializers import ProductSerializer, ReviewSerializer
 from .fitlers import ProductFiter
 
 # Create your views here.
@@ -15,9 +16,9 @@ from .fitlers import ProductFiter
 @api_view(["GET"])
 def get_all_products(request):
     products = Product.objects.all()
-    print(products)
+    # print(products)
     serializer = ProductSerializer(products, many=True)
-    print(serializer.data)
+    # print(serializer.data)
     return Response(
         {"products": serializer.data}
     )
@@ -101,4 +102,58 @@ def delete_product(request, pk):
                     status=status.HTTP_200_OK)
 
 
-    
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def create_review(request, pk):
+    user = request.user
+    product = Product.objects.get(pk=pk)
+    data = request.data
+    # get the product and user
+    review = product.reviews.filter(user=user)
+
+    # check if a previous review exist from the same user on same product
+    if review.exists():
+        # update review
+        update_review = {'rating': data['rating'], 'comment':data['comment']}
+        review.update(**update_review)
+        message = 'Prodcut review updated'
+    else:
+        # create review
+        Review.objects.create(user=user,
+                            product=product,
+                            rating=data['rating'],
+                            comment=data['comment'])
+        message = 'Prodcut review created'
+
+    # update product ratings from take average of users rating
+    rating = product.reviews.aggregate(avg_ratings=Avg('rating'))
+    product.ratings = rating['avg_ratings']
+    product.save()
+    return Response({'details': message})
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_review(request, pk):
+    user = request.user
+    product = Product.objects.get(pk=pk)
+    data = request.data
+    # get the product and user
+    review = product.reviews.filter(user=user)
+
+    # check if a previous review exist from the same user on same product
+    if review.exists():
+        # delete review
+        review.delete()
+        message = 'Prodcut review deleted'
+    else:
+        # no review exist
+        message = 'No review existed'
+
+    # update product ratings from take average of users rating
+    rating = product.reviews.aggregate(avg_ratings=Avg('rating'))
+    if rating['avg_ratings'] is None:
+        product.ratings = 0
+        product.save()
+
+    return Response({'details': message})
