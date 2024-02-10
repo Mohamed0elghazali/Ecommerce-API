@@ -2,12 +2,12 @@ from django.shortcuts import get_object_or_404
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework import status
 
 from product.models import Product
 from .models import Order, OrderItem
-from .serializers import OrderSerializer, OrderItemSerializer
+from .serializers import OrderSerializer
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -70,11 +70,11 @@ def new_order(request):
 
 
 @api_view(["PUT"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsAdminUser])
 def update_order(request, id):
     order = get_object_or_404(Order, id=id)
     order.status = request.data['status']
-    order.save()
+    order.save() 
 
     serializer = OrderSerializer(order, many=False)
     return Response({"order": serializer.data})
