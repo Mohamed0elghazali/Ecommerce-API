@@ -10,7 +10,7 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         # fields = "__all__"
-        fields = ['id', 'name', 'price', 'brand', 'category', 'ratings', 'reviews']
+        fields = ['id', 'name', 'price', 'brand', 'category', 'ratings', 'stock', 'reviews']
 
     def get_reviews(self, obj):
         reviews = obj.reviews.all()
